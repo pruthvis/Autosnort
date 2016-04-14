@@ -101,7 +101,7 @@ print_status "Hitting ruby-lang.org downloads page determine the latest version 
 wget http://www.ruby-lang.org/en/downloads/ -O /tmp/downloads.html &>> $snorby_logfile
 error_check 'Download of ruby-lang.org downloads page'
 
-rubyver=`grep -e "ruby-1" /tmp/downloads.html | head -2 | tail -1 | cut -d"-" -f3,4 | cut -d"." -f1,2,3`
+rubyver=`grep -e "ruby-2" /tmp/downloads.html | head -2 | tail -1 | cut -d"-" -f3,4 | cut -d"." -f1,2,3`
 
 print_status "installing ruby-$rubyver (this will take a little while).."
 rvm install ruby-$rubyver &>> $snorby_logfile
