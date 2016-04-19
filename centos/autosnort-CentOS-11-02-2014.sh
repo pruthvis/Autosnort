@@ -183,6 +183,8 @@ fi
 
 #CentOS 7 came out and changed a few things. One of which being WHERE the epel-release RPM is located on dl.fedoraproject.org, while still keeping the old directory structure for CentOS 6 and prior.
 #This new code tries to download the EPEL rpm for CentOS/RHEL releases 6 and less, or 7 and greater. If the script can't determine your os release, we inform the user and try to move on. Hopefully without things breaking terribly.
+echo Skipping Community rules
+: <<'END'
 
 rpm -q epel-release &>> $logfile
 if [ $? -eq 0 ]; then
@@ -449,6 +451,7 @@ cd $snortver
 
 print_status "configuring snort (options --prefix=$snort_basedir and --enable-sourcefire), making and installing. This will take a moment or two."
 
+export PATH=$PATH:/usr/local/bin
 ./configure --prefix=$snort_basedir --enable-sourcefire &>> $logfile
 error_check 'Configure Snort'
 
@@ -500,11 +503,12 @@ dir_check $snort_basedir/preproc_rules
 dir_check $snort_basedir/snort_dynamicrules
 
 print_status "Attempting to download snort.conf for $choice1.."
-
+print_status $choice1conf
 wget https://labs.snort.org/snort/$choice1conf/snort.conf -O $snort_basedir/etc/snort.conf --no-check-certificate &>> $logfile
 if [ $? != 0 ];then
 	print_error "Attempt to download $choice1 snort.conf from labs.snort.org failed. attempting to download snort.conf for $choice2.."
 	wget https://labs.snort.org/snort/$choice2conf/snort.conf -O $snort_basedir/etc/snort.conf --no-check-certificate &>> $logfile
+	print_error "https://labs.snort.org/snort/$choice2conf/snort.conf"
 	error_check 'Download of secondary snort.conf'
 else
 	print_good "Successfully downloaded snort.conf for $choice1."
@@ -585,26 +589,31 @@ cp pulledpork.tmp pulledpork.conf
 #Run pulledpork. If the first rule download fails, the script waits 15 minutes before trying again, and so on until there are no other snort rule tarballs to attempt to download.
 
 cd /usr/src/pulledpork-*
-	
+echo Skipping Community rules
+: <<'END'
 print_status "Attempting to download rules for $choice1 .."
 perl pulledpork.pl -c /usr/src/pulledpork-*/etc/pulledpork.conf -vv &>> $logfile
+
 if [ $? == 0 ]; then
 	pp_postprocessing
 else
 	print_error "Rule download for $choice1 snort rules has failed. Waiting 15 minutes, then trying text-only rule download for $choice2.."
-	sleep 910
+#	sleep 910
+	sleep 9
 	perl pulledpork.pl -S $choice2 -c /usr/src/pulledpork-*/etc/pulledpork.conf -T -vv &>> $logfile
 	if [ $? == 0 ]; then
 		pp_postprocessing
 	else
 		print_error "Rule download for $choice2 snort rules has failed. Waiting 15 minutes, then trying text-only rule download $choice3.."
-		sleep 910
+#		sleep 910
+		sleep 9
 		perl pulledpork.pl -S $choice3 -c /usr/src/pulledpork-*/etc/pulledpork.conf -T -vv &>> $logfile
 		if [ $? == 0 ]; then
 			pp_postprocessing
 		else
 			print_error "Rule download for $choice3 has failed. Waiting 15 minutes, then trying text-only rule download for $choice4 (Final shot!)"
-			sleep 910
+#			sleep 910
+			sleep 9
 			perl pulledpork.pl -S $choice4 -c /usr/src/pulledpork-*/etc/pulledpork.conf -T -vv &>> $logfile
 			if [ $? == 0 ]; then
 				pp_postprocessing
@@ -616,11 +625,15 @@ else
 	fi
 fi
 
+END
+echo Pulledpork community done 
 ########################################
 
 #now we have to download barnyard 2 and configure all of its stuff.
 
 print_status "Downloading, making and compiling barnyard2.."
+echo Skipping Community rules
+: <<'END'
 
 cd /usr/src
 
@@ -679,7 +692,7 @@ echo "config sid_file:	$snort_basedir/etc/sid-msg.map" >> /root/barnyard2.conf.t
 echo "config hostname: `hostname`" >> /root/barnyard2.conf.tmp
 
 # The if/then check here is to make sure the user chose to install a web interface. If they chose no, they chose not to install mysql server, so we can skip all this.
-
+END
 if [ $ui_inst = 1 ]; then
 	print_status "Integrating mysql with barnyard2.."
 	echo "output database: log,mysql, user=snort password=$snort_mysql_pass dbname=snort host=localhost" >> /root/barnyard2.conf.tmp
@@ -691,7 +704,7 @@ if [ $ui_inst = 1 ]; then
 	error_check 'Snort database creation'
 	
 	print_notification "Creating the snort database schema.."
-	mysql -u root -p$root_mysql_pass -D snort < /usr/src/barnyard2*/schemas/create_mysql &>> $logfile
+	mysql -u root -proot@mysql -D snort < `ls /usr/src/barnyard2-*/schemas/create_mysql` &>> $logfile
 	error_check 'Snort database schema creation'
 
 	print_notification "Creating snort database user and granting permissions to the snort database.."
